@@ -1650,13 +1650,25 @@ class Collection(object):
                     out_collection = [doc for doc in out_collection
                                       if filter_applies(v, doc)]
                 elif k == '$lookup':
+                    for operator in ['let', 'pipeline']:
+                        if operator in stage['$lookup']:
+                            raise NotImplementedError(
+                                "Although %s is a valid lookup operator for the "
+                                "aggregation pipeline, it is currently not "
+                                "implemented in Mongomock." % operator)
+                    for operator in ['from', 'localField', 'foreignField', 'as']:
+                        if operator not in stage['$lookup']:
+                            raise OperationFailure(
+                                "must specify '%s' field for a $lookup" % operator)
+                        if not isinstance(stage['$lookup'][operator], str):
+                            raise OperationFailure('arguments to $lookup must be strings')
                     foreign_name = stage['$lookup']['from']
                     local_field = stage['$lookup']['localField']
                     foreign_field = stage['$lookup']['foreignField']
                     local_name = stage['$lookup']['as']
                     foreign_collection = self.database.get_collection(foreign_name)
                     for doc in out_collection:
-                        query = doc[local_field]
+                        query = doc[local_field] if local_field in doc else None
                         if type(doc[local_field]) is list:
                             query = {'$in': query}
                         matches = foreign_collection.find({foreign_field: query})
